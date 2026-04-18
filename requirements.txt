@@ -1,0 +1,14 @@
+streamlit>=1.35.0
+colpali-engine>=0.3.10
+qdrant-client>=1.9.0
+pdf2image>=1.17.0
+PyMuPDF>=1.24.0
+Pillow>=10.0.0
+torch>=2.1.0
+transformers>=4.45.0
+openai>=1.51.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+einops>=0.7.0
+sentencepiece>=0.1.99
