@@ -1,4 +1,5 @@
 
+import json
 import logging
 import time
 
@@ -319,6 +320,7 @@ logging.basicConfig(
 
 try:
     from config import cfg, resolve_colpali_device
+    from evaluation import Evaluator
     from pipeline import RAGPipeline
 
     IMPORTS_OK = True
@@ -428,7 +430,7 @@ if docs:
                 unsafe_allow_html=True,
             )
 
-tab_upload, tab_chat = st.tabs(["Step 1 · Upload PDF", "Step 2 · Ask Questions"])
+tab_upload, tab_chat, tab_eval = st.tabs(["Step 1 · Upload PDF", "Step 2 · Ask Questions", "Step 3 · Evaluate"])
 
 with tab_upload:
     st.markdown("<div class='panel-title'>Upload and index your PDF</div><div class='panel-sub'>The app will show which stage it is in: converting, loading the model, embedding pages, storing vectors, then ready.</div>", unsafe_allow_html=True)
@@ -577,3 +579,83 @@ with tab_chat:
             if st.button("Clear last answer", use_container_width=False):
                 st.session_state.chat_history = []
                 st.rerun()
+
+with tab_eval:
+    st.markdown(
+        "<div class='panel-title'>Benchmark evaluation</div>"
+        "<div class='panel-sub'>Runs the built-in benchmark queries against the indexed document and reports "
+        "retrieval quality metrics: latency, citation coverage, modality hit rate, and top retrieval score.</div>",
+        unsafe_allow_html=True,
+    )
+
+    eval_docs = pipeline.list_documents()
+    if not eval_docs:
+        st.info("No indexed document yet. Finish Step 1 first.")
+    else:
+        eval_doc_options = {doc["doc_name"]: doc["doc_id"] for doc in eval_docs}
+        eval_selected_name = st.selectbox(
+            "Document to evaluate",
+            options=list(eval_doc_options.keys()),
+            key="eval_doc_select",
+        )
+        eval_selected_id = eval_doc_options[eval_selected_name]
+
+        if st.button("Run evaluation", use_container_width=True):
+            with st.spinner("Running benchmark queries — this may take a moment..."):
+                evaluator = Evaluator(pipeline)
+                eval_results = evaluator.run(top_k=cfg.top_k, doc_id=eval_selected_id)
+                st.session_state["eval_results"] = eval_results
+
+        if "eval_results" in st.session_state and st.session_state["eval_results"]:
+            eval_results = st.session_state["eval_results"]
+            summary = Evaluator.summary(eval_results)
+
+            st.markdown("#### Summary metrics")
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Avg latency (s)", summary.get("avg_latency_s", "—"))
+            m2.metric("Citation coverage", f"{summary.get('citation_coverage_rate', 0):.1f}%")
+            m3.metric("Modality hit rate", f"{summary.get('modality_hit_rate', 0):.1f}%")
+            m4.metric("Avg top score", summary.get("avg_top_retrieval_score", "—"))
+
+            st.markdown("#### Per-query results")
+            rows = [
+                {
+                    "Query": r.query,
+                    "Modality": r.modality,
+                    "Pages hit": ", ".join(str(p) for p in r.top_pages),
+                    "Top score": r.scores[0] if r.scores else 0.0,
+                    "Latency (s)": r.latency_s,
+                    "Citations": r.citation_count,
+                    "Keyword hit": r.keyword_hit,
+                    "Modality hit": r.modality_hit,
+                }
+                for r in eval_results
+            ]
+            st.dataframe(rows, use_container_width=True)
+
+            export_payload = {
+                "summary": summary,
+                "results": [
+                    {
+                        "query": r.query,
+                        "modality": r.modality,
+                        "top_pages": r.top_pages,
+                        "top_docs": r.top_docs,
+                        "scores": r.scores,
+                        "top_sections": r.top_sections,
+                        "latency_s": r.latency_s,
+                        "keyword_hit": r.keyword_hit,
+                        "citation_count": r.citation_count,
+                        "modality_hit": r.modality_hit,
+                        "evidence_count": r.evidence_count,
+                    }
+                    for r in eval_results
+                ],
+            }
+            st.download_button(
+                label="Export results as JSON",
+                data=json.dumps(export_payload, indent=2),
+                file_name="evaluation_results.json",
+                mime="application/json",
+                use_container_width=False,
+            )
