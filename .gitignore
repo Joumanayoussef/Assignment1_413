@@ -1,5 +1,9 @@
 .env
 .streamlit-*.log
+*.log
 .venv/
 __pycache__/
 *.pyc
+.DS_Store
+*.pdf
+qdrant_storage/
