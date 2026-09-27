@@ -266,19 +266,16 @@ class VectorStore:
                 }
             )
 
-        hits.sort(key=lambda hit: hit.get("hybrid_score", hit.get("score", 0.0)), reverse=True)
-        top_hits = hits[:top_k]
-
-        if rerank and query_text and len(top_hits) > 1:
+        if rerank and query_text and len(hits) > 1:
             from semantic_reranker import SemanticReranker
-            page_texts = [hit.get("page_text", "") or "" for hit in top_hits]
+            page_texts = [hit.get("page_text", "") or "" for hit in hits]
             sem_scores = SemanticReranker.score(query_text, page_texts)
-            for hit, sem_score in zip(top_hits, sem_scores):
+            for hit, sem_score in zip(hits, sem_scores):
                 hit["semantic_score"] = round(sem_score, 4)
                 hit["hybrid_score"] = hit["hybrid_score"] + 0.15 * sem_score
-            top_hits.sort(key=lambda h: h["hybrid_score"], reverse=True)
 
-        return top_hits
+        hits.sort(key=lambda hit: hit.get("hybrid_score", hit.get("score", 0.0)), reverse=True)
+        return hits[:top_k]
 
     def count(self) -> int:
         """Return total number of indexed page points."""
