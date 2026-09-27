@@ -38,13 +38,6 @@ class QdrantConfig:
 
 
 @dataclass
-class AnthropicConfig:
-    api_key: str    = os.getenv("ANTHROPIC_API_KEY", "")
-    model: str      = "claude-3-5-sonnet-20241022"
-    max_tokens: int = 1024
-
-
-@dataclass
 class OpenAIConfig:
     api_key: str    = os.getenv("OPENAI_API_KEY", "")
     model: str      = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -53,13 +46,13 @@ class OpenAIConfig:
 
 @dataclass
 class AppConfig:
-    colpali:   ColPaliConfig  = field(default_factory=ColPaliConfig)
-    qdrant:    QdrantConfig   = field(default_factory=QdrantConfig)
-    anthropic: AnthropicConfig = field(default_factory=AnthropicConfig)
-    openai:    OpenAIConfig   = field(default_factory=OpenAIConfig)
+    colpali:  ColPaliConfig = field(default_factory=ColPaliConfig)
+    qdrant:   QdrantConfig  = field(default_factory=QdrantConfig)
+    openai:   OpenAIConfig  = field(default_factory=OpenAIConfig)
 
-    top_k:   int = 3
-    pdf_dpi: int = 72    # 72 = fast (CPU), use 150 for better quality on GPU
+    top_k:            int  = 3
+    pdf_dpi:          int  = 72    # 72 = fast (CPU), use 150 for better quality on GPU
+    reranker_enabled: bool = True
 
 
 cfg = AppConfig()
