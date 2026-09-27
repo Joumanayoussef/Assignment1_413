@@ -182,6 +182,7 @@ class RAGPipeline:
             query_text=question,
             top_k=top_k,
             doc_id=doc_id,
+            rerank=cfg.reranker_enabled,
         )
         result = self.generator.generate_answer(question=question, retrieved_hits=hits)
         result["hits"] = hits
